@@ -5,6 +5,14 @@ interface ContactoSectionProps {
   onSubjectChange: (value: string) => void;
 }
 
+const SUBJECT_LABELS: Record<string, string> = {
+  cata: 'Cata Guiada / Evento Privado',
+  carta: 'Curaduría de Carta de Vinos',
+  sala: 'Asesoramiento en Sala / Vinoteca',
+  embajada: 'Brand Ambassador / Divulgación',
+  otra: 'Otra Consulta Enológica',
+};
+
 export const ContactoSection: React.FC<ContactoSectionProps> = ({
   selectedSubject,
   onSubjectChange,
@@ -13,12 +21,54 @@ export const ContactoSection: React.FC<ContactoSectionProps> = ({
   const [company, setCompany] = useState('');
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
+  const [botcheck, setBotcheck] = useState(false);
+  const [sending, setSending] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim() || !message.trim()) return;
-    setSubmitted(true);
+
+    setSending(true);
+    setError(false);
+    setSubmitted(false);
+
+    try {
+      const res = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          access_key: import.meta.env.VITE_WEB3FORMS_KEY,
+          subject: `Consulta web (${SUBJECT_LABELS[selectedSubject] ?? selectedSubject}) - ${name}`,
+          from_name: 'Portafolio Guido Spina',
+          name,
+          email,
+          empresa: company || 'No indicado',
+          tipo_consulta: SUBJECT_LABELS[selectedSubject] ?? selectedSubject,
+          message,
+          botcheck,
+        }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setSubmitted(true);
+        setName('');
+        setCompany('');
+        setEmail('');
+        setMessage('');
+      } else {
+        setError(true);
+      }
+    } catch {
+      setError(true);
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -44,6 +94,18 @@ export const ContactoSection: React.FC<ContactoSectionProps> = ({
               id="portfolio-contact-form"
               onSubmit={handleSubmit}
             >
+              {/* Honeypot antispam (oculto) */}
+              <input
+                type="checkbox"
+                name="botcheck"
+                className="hidden"
+                style={{ display: 'none' }}
+                tabIndex={-1}
+                autoComplete="off"
+                checked={botcheck}
+                onChange={(e) => setBotcheck(e.target.checked)}
+              />
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
                 <div className="flex flex-col gap-space-xs">
                   <label
@@ -139,10 +201,11 @@ export const ContactoSection: React.FC<ContactoSectionProps> = ({
               </div>
 
               <button
-                className="inline-flex items-center justify-center gap-space-xs px-space-lg py-space-sm bg-primary text-on-primary hover:bg-primary-container font-label-lg text-label-lg rounded shadow-md transition-all self-start cursor-pointer"
+                className="inline-flex items-center justify-center gap-space-xs px-space-lg py-space-sm bg-primary text-on-primary hover:bg-primary-container font-label-lg text-label-lg rounded shadow-md transition-all self-start cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 type="submit"
+                disabled={sending}
               >
-                <span>Enviar Consulta Enológica</span>
+                <span>{sending ? 'Enviando...' : 'Enviar Consulta Enológica'}</span>
                 <span className="material-symbols-outlined text-[18px]">send</span>
               </button>
 
@@ -156,6 +219,18 @@ export const ContactoSection: React.FC<ContactoSectionProps> = ({
                   </span>
                   <span>
                     Mensaje enviado con éxito. Guido Spina se contactará a la brevedad.
+                  </span>
+                </div>
+              )}
+
+              {error && (
+                <div
+                  className="p-space-sm rounded bg-error-container text-on-error-container font-body-sm text-body-sm flex items-center gap-space-xs"
+                  id="form-error-banner"
+                >
+                  <span className="material-symbols-outlined">error</span>
+                  <span>
+                    No se pudo enviar el mensaje. Escribí a guidospina@gmail.com o por WhatsApp.
                   </span>
                 </div>
               )}
