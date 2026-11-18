@@ -50,7 +50,7 @@ export const ContactoSection: React.FC<ContactoSectionProps> = ({
           empresa: company || 'No indicado',
           tipo_consulta: SUBJECT_LABELS[selectedSubject] ?? selectedSubject,
           message,
-          botcheck,
+          ...(botcheck ? { botcheck: true } : {}),
         }),
       });
       const data = await res.json();
